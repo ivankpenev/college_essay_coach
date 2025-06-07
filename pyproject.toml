@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "college-essay-coach"
+version = "0.1.0"
+description = "Brain like Berkeley"
+authors = ["Ivan P"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.13"
+openai = "^1.84.0"
+python-dotenv = "^1.1.0"
+assemblyai = {extras = ["extras"], version = "^0.41.1"}
+pyaudio = "^0.2.14"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
