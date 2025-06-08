@@ -1,10 +1,12 @@
 import os
 import json
 import glob
+import threading
 from datetime import datetime
 from openai import OpenAI
 
 from prompts import INITIAL_QUESTIONS, SYSTEM_PROMPT
+from transcriber import RealtimeTranscriber
 
 
 class Agent:
@@ -16,6 +18,37 @@ class Agent:
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.conversation_history = self._load_or_initialize_conversation()
         self.initial_questions = INITIAL_QUESTIONS
+        self.transcript_event = threading.Event()
+        self.final_transcript = ""
+
+    def _handle_final_transcript(self, text):
+        """Callback to handle the final transcript from the transcriber."""
+        self.final_transcript = text
+        self.transcript_event.set()
+
+    def _get_voice_input(self, prompt):
+        """Gets voice input from the user using the real-time transcriber."""
+        print(prompt)
+        print("You: (Start speaking now, press Ctrl+C to finish)")
+
+        self.transcript_event.clear()
+        self.final_transcript = ""
+
+        transcriber_instance = RealtimeTranscriber(self._handle_final_transcript)
+        
+        try:
+            transcriber_instance.start()
+            self.transcript_event.wait()  # Wait until the final transcript is received
+        except KeyboardInterrupt:
+            transcriber_instance.stop()
+            print("\nRecording finished.")
+        
+        # In case stop() was called before a final transcript was set
+        if transcriber_instance:
+             transcriber_instance.stop()
+
+        print(f"You said: {self.final_transcript}")
+        return self.final_transcript
 
     def _load_or_initialize_conversation(self):
         """
@@ -64,7 +97,7 @@ class Agent:
         if not is_resuming:
             # Initial interview phase
             for question in self.initial_questions:
-                user_input = input(f"AI: {question}\nYou: ")
+                user_input = self._get_voice_input(f"AI: {question}")
                 self.conversation_history.append({"role": "user", "content": user_input})
 
                 # Get a brief, non-question follow-up
@@ -93,7 +126,7 @@ class Agent:
 
         # Main conversation loop
         while True:
-            user_input = input("You: ")
+            user_input = self._get_voice_input("You: ")
             if user_input.lower() in ["exit", "quit", "end", "goodbye", "bye"]:
                 break
 
